@@ -1,0 +1,768 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading P/L Calendar</title>
+<style>
+:root {
+  --navy:#172554;
+  --blue:#2563eb;
+  --line:#dbe3ee;
+  --bg:#f4f7fb;
+  --green:#e1f5e7;
+  --greenBorder:#70c58c;
+  --red:#ffebeb;
+  --redBorder:#e58a8a;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:#172033;
+}
+header {
+  background:var(--navy);
+  color:white;
+  padding:24px;
+}
+header h1 { margin:0; font-size:26px; }
+header p { color:#cbd5e1; margin:8px 0 0; }
+main { max-width:1250px; margin:auto; padding:18px; }
+.toolbar,.panel,.stat {
+  background:white;
+  border:1px solid var(--line);
+  border-radius:12px;
+}
+.toolbar {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:end;
+  padding:14px;
+  margin-bottom:16px;
+}
+.field { display:flex; flex-direction:column; gap:5px; }
+label { font-size:12px; font-weight:bold; color:#64748b; }
+select,button,.file-button {
+  padding:10px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:white;
+  font-size:14px;
+  cursor:pointer;
+}
+button.primary { background:var(--blue); color:white; border-color:var(--blue); }
+button:hover,.file-button:hover { filter:brightness(.96); }
+.file-input { display:none; }
+.spacer { flex:1; }
+#saveStatus { font-size:12px; color:#64748b; }
+.stats {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+.stat { padding:14px; min-width:0; }
+.stat-label {
+  color:#64748b;
+  font-size:12px;
+  font-weight:bold;
+  text-transform:uppercase;
+}
+.stat-value {
+  margin-top:8px;
+  font-size:23px;
+  font-weight:bold;
+  overflow-wrap:anywhere;
+}
+.positive-text { color:#16733a !important; }
+.negative-text { color:#b42318 !important; }
+.layout {
+  display:grid;
+  grid-template-columns:minmax(0,1.8fr) minmax(280px,1fr);
+  gap:16px;
+  align-items:start;
+}
+.panel { padding:15px; min-width:0; }
+.panel-head {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+h2 { font-size:18px; margin:0; }
+.subtle { color:#64748b; font-size:12px; }
+.calendar {
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:5px;
+}
+.weekday {
+  text-align:center;
+  padding:8px 0;
+  color:#64748b;
+  font-size:12px;
+  font-weight:bold;
+}
+.day {
+  min-height:112px;
+  min-width:0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  background:white;
+}
+.day.empty { border-color:transparent; background:transparent; }
+.day.win { background:var(--green); border-color:var(--greenBorder); }
+.day.loss { background:var(--red); border-color:var(--redBorder); }
+.day-top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:3px;
+}
+.day-num { font-size:13px; font-weight:bold; }
+.day-tag { font-size:9px; color:#64748b; }
+.pl-input {
+  width:100%;
+  min-width:0;
+  padding:8px 2px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  text-align:center;
+  font-size:13px;
+  background:rgba(255,255,255,.85);
+}
+.week-total {
+  margin-top:auto;
+  padding-top:5px;
+  border-top:1px dashed #cbd5e1;
+  font-size:10px;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  color:#475569;
+}
+.week-total strong { font-size:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td {
+  padding:10px 6px;
+  border-bottom:1px solid #e8edf4;
+  text-align:right;
+}
+th:first-child,td:first-child { text-align:left; }
+th {
+  color:#64748b;
+  font-size:11px;
+  text-transform:uppercase;
+}
+tfoot { font-weight:bold; }
+.year-row { cursor:pointer; }
+.year-row:hover { background:#f1f5f9; }
+.section-gap { margin-top:16px; }
+.note {
+  margin-top:12px;
+  color:#64748b;
+  font-size:12px;
+  line-height:1.5;
+}
+@media(max-width:850px) {
+  .layout { grid-template-columns:1fr; }
+  .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:520px) {
+  header { padding:18px 14px; }
+  main { padding:10px 6px; }
+  .panel { padding:8px; }
+  .calendar { gap:3px; }
+  .day { min-height:79px; padding:3px; gap:4px; }
+  .day-num { font-size:11px; }
+  .day-tag { font-size:8px; }
+  .pl-input { font-size:11px; padding:6px 0; }
+  .week-total { font-size:9px; }
+  .week-total strong { font-size:10px; }
+  .stat-value { font-size:19px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trading P/L Calendar</h1>
+  <p>Track daily profits and losses · 2026–2027</p>
+</header>
+
+<main>
+  <section class="toolbar">
+    <div class="field">
+      <label for="year">YEAR</label>
+      <select id="year">
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="month">MONTH</label>
+      <select id="month"></select>
+    </div>
+
+    <button id="prev">← Previous</button>
+    <button id="next">Next →</button>
+
+    <div class="spacer"></div>
+
+    <button id="backup">Export Backup</button>
+    <label class="file-button" for="restore">Import Backup</label>
+    <input id="restore" class="file-input" type="file" accept=".json">
+    <button id="csv">Export CSV</button>
+    <span id="saveStatus" role="status">Ready</span>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-label">Monthly P/L</div>
+      <div class="stat-value" id="monthPL">$0.00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Winning Days</div>
+      <div class="stat-value" id="wins">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Losing Days</div>
+      <div class="stat-value" id="losses">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Best / Worst Day</div>
+      <div class="stat-value" id="bestWorst">$0.00 / $0.00</div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 id="calendarTitle">January 2026</h2>
+          <div class="subtle">Enter your net daily P/L in the blank cells.</div>
+        </div>
+      </div>
+      <div id="calendar" class="calendar"></div>
+      <div class="note">
+        Positive amount = green day. Negative amount = red day.
+        Blank cells are not counted. Enter 0 for a break-even day.
+      </div>
+    </section>
+
+    <aside>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Year Summary</h2>
+          <span id="yearTitle" class="subtle">2026</span>
+        </div>
+        <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          <div class="stat">
+            <div class="stat-label">Year P/L</div>
+            <div class="stat-value" id="yearPL">$0.00</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Wins / Losses</div>
+            <div class="stat-value" id="yearWL">0 / 0</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Month</th><th>P/L</th><th>W</th><th>L</th></tr>
+          </thead>
+          <tbody id="yearRows"></tbody>
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              <td id="yearTotal">$0.00</td>
+              <td id="yearWins">0</td>
+              <td id="yearLosses">0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      <section class="panel section-gap">
+        <div class="panel-head"><h2>Monthly Details</h2></div>
+        <table>
+          <tbody>
+            <tr><td>Days entered</td><td id="entered">0</td></tr>
+            <tr><td>Winning days</td><td id="detailWins">0</td></tr>
+            <tr><td>Losing days</td><td id="detailLosses">0</td></tr>
+            <tr><td>Break-even days</td><td id="flats">0</td></tr>
+            <tr><td>Best day</td><td id="best">$0.00</td></tr>
+            <tr><td>Worst day</td><td id="worst">$0.00</td></tr>
+            <tr><td>Average per entered day</td><td id="average">$0.00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </aside>
+  </div>
+
+  <p class="note">
+    Entries are saved automatically in this browser on this device.
+    They are not uploaded to GitHub. Export a JSON backup regularly.
+    Browser data clearing, private browsing, or switching devices can
+    make locally saved entries unavailable.
+  </p>
+</main>
+
+<script>
+"use strict";
+
+(function () {
+  const STORAGE_KEY = "trading-pl-calendar-v1";
+  const months = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ];
+  const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const $ = id => document.getElementById(id);
+  const yearSelect = $("year");
+  const monthSelect = $("month");
+  const calendar = $("calendar");
+  const saveStatus = $("saveStatus");
+
+  let data = loadData();
+  let saveTimer = null;
+
+  months.forEach((name, index) => {
+    const option = document.createElement("option");
+    option.value = index;
+    option.textContent = name;
+    monthSelect.appendChild(option);
+  });
+
+  const now = new Date();
+  yearSelect.value = now.getFullYear() === 2027 ? "2027" : "2026";
+  monthSelect.value = now.getMonth();
+
+  function loadData() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return {};
+      const parsed = JSON.parse(stored);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function keyFor(year, month, day) {
+    return year + "-" +
+      String(month + 1).padStart(2, "0") + "-" +
+      String(day).padStart(2, "0");
+  }
+
+  function valueFor(key) {
+    if (data[key] === undefined || data[key] === null || data[key] === "") {
+      return null;
+    }
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function money(value) {
+    const n = Number(value) || 0;
+    return (n < 0 ? "-$" : "$") +
+      Math.abs(n).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+  }
+
+  function setTone(element, value) {
+    element.classList.remove("positive-text", "negative-text");
+    if (value > 0) element.classList.add("positive-text");
+    if (value < 0) element.classList.add("negative-text");
+  }
+
+  function monthStats(year, month) {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const values = [];
+
+    for (let day = 1; day <= lastDay; day++) {
+      const value = valueFor(keyFor(year, month, day));
+      if (value !== null) values.push({day, value});
+    }
+
+    const amounts = values.map(item => item.value);
+    const wins = amounts.filter(v => v > 0).length;
+    const losses = amounts.filter(v => v < 0).length;
+    const flats = amounts.filter(v => v === 0).length;
+    const total = amounts.reduce((sum, v) => sum + v, 0);
+
+    return {
+      values,
+      entered: amounts.length,
+      wins,
+      losses,
+      flats,
+      total,
+      best: amounts.length ? Math.max(...amounts) : 0,
+      worst: amounts.length ? Math.min(...amounts) : 0,
+      average: amounts.length ? total / amounts.length : 0
+    };
+  }
+
+  function yearStats(year) {
+    const byMonth = months.map((_, month) => monthStats(year, month));
+    return {
+      byMonth,
+      total: byMonth.reduce((sum, m) => sum + m.total, 0),
+      wins: byMonth.reduce((sum, m) => sum + m.wins, 0),
+      losses: byMonth.reduce((sum, m) => sum + m.losses, 0)
+    };
+  }
+
+  function weekTotal(year, month, day) {
+    const weekday = new Date(year, month, day).getDay();
+    const start = day - weekday;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const end = Math.min(lastDay, start + 6);
+    let total = 0;
+
+    for (let d = Math.max(1, start); d <= end; d++) {
+      const value = valueFor(keyFor(year, month, d));
+      if (value !== null) total += value;
+    }
+    return total;
+  }
+
+  function updateWeekTotals() {
+    document.querySelectorAll("[data-week-day]").forEach(element => {
+      const day = Number(element.dataset.weekDay);
+      const year = Number(yearSelect.value);
+      const month = Number(monthSelect.value);
+      const total = weekTotal(year, month, day);
+      element.textContent = money(total);
+      setTone(element, total);
+    });
+  }
+
+  function renderCalendar() {
+    const year = Number(yearSelect.value);
+    const month = Number(monthSelect.value);
+    $("calendarTitle").textContent = months[month] + " " + year;
+    calendar.innerHTML = "";
+
+    weekdays.forEach(name => {
+      const heading = document.createElement("div");
+      heading.className = "weekday";
+      heading.textContent = name;
+      calendar.appendChild(heading);
+    });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+    for (let i = 0; i < totalCells; i++) {
+      const day = i - firstDay + 1;
+
+      if (day < 1 || day > daysInMonth) {
+        const blank = document.createElement("div");
+        blank.className = "day empty";
+        calendar.appendChild(blank);
+        continue;
+      }
+
+      const key = keyFor(year, month, day);
+      const value = valueFor(key);
+      const card = document.createElement("div");
+      card.className = "day";
+      applyDayColor(card, value);
+
+      const top = document.createElement("div");
+      top.className = "day-top";
+
+      const number = document.createElement("span");
+      number.className = "day-num";
+      number.textContent = day;
+
+      const tag = document.createElement("span");
+      tag.className = "day-tag";
+      tag.textContent = dayLabel(value);
+
+      top.append(number, tag);
+
+      const input = document.createElement("input");
+      input.className = "pl-input";
+      input.type = "number";
+      input.step = "0.01";
+      input.inputMode = "decimal";
+      input.placeholder = "P/L";
+      input.value = value === null ? "" : String(value);
+      input.setAttribute("aria-label", "P/L for " + months[month] + " " + day + " " + year);
+
+      input.addEventListener("input", () => {
+        const raw = input.value.trim();
+
+        if (raw === "") {
+          delete data[key];
+        } else {
+          const numberValue = Number(raw);
+          if (Number.isFinite(numberValue)) data[key] = numberValue;
+        }
+
+        const newValue = valueFor(key);
+        applyDayColor(card, newValue);
+        tag.textContent = dayLabel(newValue);
+        updateWeekTotals();
+        updateSummaries();
+        scheduleSave();
+      });
+
+      input.addEventListener("blur", () => {
+        const raw = input.value.trim();
+        if (raw === "") {
+          input.value = "";
+        } else if (Number.isFinite(Number(raw))) {
+          input.value = Number(raw).toFixed(2);
+        }
+      });
+
+      const weekly = document.createElement("div");
+      weekly.className = "week-total";
+
+      const weeklyLabel = document.createElement("span");
+      weeklyLabel.textContent = "Week total";
+
+      const weeklyValue = document.createElement("strong");
+      weeklyValue.dataset.weekDay = String(day);
+      weeklyValue.textContent = money(weekTotal(year, month, day));
+
+      setTone(weeklyValue, weekTotal(year, month, day));
+      weekly.append(weeklyLabel, weeklyValue);
+      card.append(top, input, weekly);
+      calendar.appendChild(card);
+    }
+
+    updateSummaries();
+  }
+
+  function dayLabel(value) {
+    if (value === null) return "";
+    if (value > 0) return "WIN";
+    if (value < 0) return "LOSS";
+    return "FLAT";
+  }
+
+  function applyDayColor(card, value) {
+    card.classList.remove("win", "loss");
+    if (value > 0) card.classList.add("win");
+    if (value < 0) card.classList.add("loss");
+  }
+
+  function updateSummaries() {
+    const year = Number(yearSelect.value);
+    const month = Number(monthSelect.value);
+    const ms = monthStats(year, month);
+    const ys = yearStats(year);
+
+    $("monthPL").textContent = money(ms.total);
+    setTone($("monthPL"), ms.total);
+
+    $("wins").textContent = ms.wins;
+    $("losses").textContent = ms.losses;
+
+    $("bestWorst").textContent = money(ms.best) + " / " + money(ms.worst);
+    setTone($("bestWorst"), ms.total);
+
+    $("entered").textContent = ms.entered;
+    $("detailWins").textContent = ms.wins;
+    $("detailLosses").textContent = ms.losses;
+    $("flats").textContent = ms.flats;
+
+    $("best").textContent = money(ms.best);
+    setTone($("best"), ms.best);
+
+    $("worst").textContent = money(ms.worst);
+    setTone($("worst"), ms.worst);
+
+    $("average").textContent = money(ms.average);
+    setTone($("average"), ms.average);
+
+    $("yearTitle").textContent = year;
+    $("yearPL").textContent = money(ys.total);
+    setTone($("yearPL"), ys.total);
+    $("yearWL").textContent = ys.wins + " / " + ys.losses;
+
+    const rows = $("yearRows");
+    rows.innerHTML = "";
+
+    ys.byMonth.forEach((item, index) => {
+      const row = document.createElement("tr");
+      row.className = "year-row";
+
+      const name = document.createElement("td");
+      name.textContent = months[index];
+
+      const total = document.createElement("td");
+      total.textContent = money(item.total);
+      setTone(total, item.total);
+
+      const wins = document.createElement("td");
+      wins.textContent = item.wins;
+
+      const losses = document.createElement("td");
+      losses.textContent = item.losses;
+
+      row.append(name, total, wins, losses);
+      row.title = "Click to open " + months[index];
+
+      row.addEventListener("click", () => {
+        monthSelect.value = String(index);
+        renderCalendar();
+        window.scrollTo({top:0, behavior:"smooth"});
+      });
+
+      rows.appendChild(row);
+    });
+
+    $("yearTotal").textContent = money(ys.total);
+    setTone($("yearTotal"), ys.total);
+    $("yearWins").textContent = ys.wins;
+    $("yearLosses").textContent = ys.losses;
+  }
+
+  function scheduleSave() {
+    saveStatus.textContent = "Saving…";
+    if (saveTimer) clearTimeout(saveTimer);
+
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        saveStatus.textContent = "Saved locally ✓";
+      } catch (error) {
+        saveStatus.textContent = "Save failed — export backup";
+      }
+    }, 200);
+  }
+
+  function download(filename, content, mimeType) {
+    const blob = new Blob([content], {type:mimeType});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  $("backup").addEventListener("click", () => {
+    const backup = {
+      app:"Trading P/L Calendar",
+      version:1,
+      exportedAt:new Date().toISOString(),
+      entries:data
+    };
+
+    download(
+      "trading-pl-backup-" + new Date().toISOString().slice(0,10) + ".json",
+      JSON.stringify(backup, null, 2),
+      "application/json"
+    );
+  });
+
+  $("restore").addEventListener("change", async event => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const entries = parsed.entries || parsed;
+
+      if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
+        throw new Error("Invalid backup");
+      }
+
+      const clean = {};
+      Object.keys(entries).forEach(key => {
+        if (/^202[67]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(key)) {
+          const value = entries[key];
+          if (value !== "" && value !== null && Number.isFinite(Number(value))) {
+            clean[key] = Number(value);
+          }
+        }
+      });
+
+      if (!confirm("Import " + Object.keys(clean).length +
+                   " entries? This replaces the data currently saved in this browser.")) {
+        return;
+      }
+
+      data = clean;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      renderCalendar();
+      saveStatus.textContent = "Backup restored ✓";
+    } catch (error) {
+      alert("Unable to import this file. Please select a backup JSON file exported by this calendar.");
+    } finally {
+      event.target.value = "";
+    }
+  });
+
+  $("csv").addEventListener("click", () => {
+    const rows = [["Date","Year","Month","Day","Daily P/L"]];
+
+    Object.keys(data).sort().forEach(key => {
+      const parts = key.split("-");
+      rows.push([
+        key,
+        parts[0],
+        months[Number(parts[1]) - 1],
+        Number(parts[2]),
+        data[key]
+      ]);
+    });
+
+    const csv = rows.map(row => row.map(value => {
+      const text = String(value);
+      return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    }).join(",")).join("\r\n");
+
+    download("trading-pl-entries.csv", csv, "text/csv;charset=utf-8");
+  });
+
+  yearSelect.addEventListener("change", renderCalendar);
+  monthSelect.addEventListener("change", renderCalendar);
+
+  function moveMonth(direction) {
+    let year = Number(yearSelect.value);
+    let month = Number(monthSelect.value) + direction;
+
+    if (month < 0) { month = 11; year--; }
+    if (month > 11) { month = 0; year++; }
+
+    if (year < 2026) { year = 2026; month = 0; }
+    if (year > 2027) { year = 2027; month = 11; }
+
+    yearSelect.value = String(year);
+    monthSelect.value = String(month);
+    renderCalendar();
+  }
+
+  $("prev").addEventListener("click", () => moveMonth(-1));
+  $("next").addEventListener("click", () => moveMonth(1));
+
+  renderCalendar();
+})();
+</script>
+</body>
+</html>
